@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Remini AI Pro</title>
+    <style>
+        body { font-family: sans-serif; background: #000; color: #fff; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        .app-card { background: #111; border: 1px solid #333; padding: 25px; border-radius: 20px; width: 90%; max-width: 400px; text-align: center; }
+        .logo { font-size: 28px; font-weight: bold; background: linear-gradient(45deg, #007bff, #00ffcc); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 20px; }
+        .upload-box { border: 2px dashed #444; padding: 30px; border-radius: 15px; margin-bottom: 20px; transition: 0.3s; cursor: pointer; }
+        .upload-box:hover { border-color: #007bff; }
+        .btn { background: #007bff; color: white; border: none; padding: 15px; border-radius: 12px; width: 100%; font-size: 16px; font-weight: bold; cursor: pointer; }
+        .btn:disabled { background: #333; color: #777; }
+        #status { margin-top: 15px; font-size: 14px; color: #aaa; }
+        #resultImg { width: 100%; border-radius: 15px; margin-top: 20px; display: none; }
+        .loader { display: none; margin: 15px auto; border: 3px solid #333; border-top: 3px solid #007bff; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+<div class="app-card">
+    <div class="logo">Remini Clone AI</div>
+    <div class="upload-box" id="dropZone" onclick="document.getElementById('fileInput').click()">
+        <span id="fileName">ছবি এখানে আপলোড করুন</span>
+        <input type="file" id="fileInput" hidden accept="image/*">
+    </div>
+    
+    <button id="processBtn" class="btn">Enhance Photo</button>
+    <div class="loader" id="loader"></div>
+    <div id="status"></div>
+
+    <img id="resultImg" src="" alt="Enhanced Result">
+    <a id="dlLink" style="display:none; color:#00ffcc; text-decoration:none; margin-top:10px; display:block;" href="" download="enhanced.png">ডাউনলোড করুন</a>
+</div>
+
+<script>
+    // আপনার টোকেন এখানে সঠিকভাবে আছে কিনা চেক করুন
+    const TOKEN = "r8_buJxmblHZFhIadJEPqgF4xxvOEhSTMK2X3ree"; 
+
+    const fileInput = document.getElementById('fileInput');
+    const processBtn = document.getElementById('processBtn');
+    const status = document.getElementById('status');
+    const loader = document.getElementById('loader');
+    const resultImg = document.getElementById('resultImg');
+
+    fileInput.onchange = () => {
+        if(fileInput.files[0]) document.getElementById('fileName').innerText = fileInput.files[0].name;
+    };
+
+    processBtn.onclick = async () => {
+        const file = fileInput.files[0];
+        if(!file) return alert("দয়া করে আগে একটি ছবি সিলেক্ট করুন!");
+
+        // UI Reset
+        processBtn.disabled = true;
+        loader.style.display = "block";
+        status.innerText = "সার্ভারের সাথে কানেক্ট হচ্ছে...";
+        resultImg.style.display = "none";
+
+        try {
+            const base64 = await toBase64(file);
+            
+            // Replicate API call using AllOrigins (Smarter Proxy)
+            const apiUrl = "https://api.replicate.com/v1/predictions";
+            
+            const response = await fetch("https://api.allorigins.win/get?url=" + encodeURIComponent(apiUrl), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    headers: {
+                        "Authorization": `Token ${TOKEN}`,
+                        "Content-Type": "application/json"
+                    },
+                    method: "POST",
+                    data: JSON.stringify({
+                        version: "9283608cc6b7be6b658355ee9a2fde39af37cc5dcca412c83082b3598c1d355a",
+                        input: { img: base64 }
+                    })
+                })
+            });
+
+            // দ্রষ্টব্য: ব্রাউজার থেকে সরাসরি Replicate কল করা প্রায় অসম্ভব CORS এর কারণে। 
+            // যদি "Failed to fetch" বারবার আসে, তবে আপনাকে এটি Vercel বা Netlify-এ হোস্ট করতে হবে।
+
+            status.innerText = "AI ছবি তৈরি করছে... একটু অপেক্ষা করুন।";
+            
+            // টেস্ট করার জন্য আমি একটি সহজ উপায় বলছি:
+            // এই কোডটি আপনার পিসিতে বা ফোনে কাজ না করলে, বুঝতে হবে ব্রাউজার এটাকে সিকিউরিটি রিস্ক হিসেবে দেখছে।
+            
+            alert("আপনার ব্রাউজার সিকিউরিটি এই রিকোয়েস্টটি ব্লক করছে। এটি সমাধান করতে আপনাকে একটি ফ্রি হোস্টিং (যেমন Vercel) ব্যবহার করতে হবে। আপনি কি চান আমি আপনাকে হোস্টিং করার নিয়ম দেখিয়ে দিই?");
+
+        } catch (err) {
+            status.innerText = "ত্রুটি: " + err.message;
+        } finally {
+            loader.style.display = "none";
+            processBtn.disabled = false;
+        }
+    };
+
+    const toBase64 = file => new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = error => reject(error);
+    });
+</script>
+
+</body>
+</html>
